@@ -1,0 +1,13 @@
+# Web Application Core Dependencies
+Flask==2.3.3
+Flask-CORS==4.0.0
+Werkzeug==2.3.7
+
+# Scientific Computing & Data Processing
+numpy==1.24.3
+pandas==2.0.3
+scipy==1.11.2
+matplotlib==3.7.2
+
+# Additional utilities
+gunicorn==21.2.0
