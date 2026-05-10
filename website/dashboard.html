@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Quant Project{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <section class="hero-panel hero-copy">
+        <div class="eyebrow">Quant Project Web Platform</div>
+        <h1>Multi-objective optimization, finance simulation, and Wilcoxon analysis in one place.</h1>
+        <p class="subtitle">This website presents the core results of the project: DTLZ benchmark experiments, portfolio optimization, algorithm tuning, and the new Wilcoxon significance heatmaps generated with 30-run experiments for statistical validity.</p>
+        <div class="hero-actions">
+            <a class="btn-primary" href="/simulator/finance">Open Finance Simulator</a>
+            <a class="btn-secondary" href="/simulator/algorithm">Open Algorithm Tuner</a>
+            <a class="btn-secondary" href="/simulator/budget">Open Budget Sweep</a>
+        </div>
+    </section>
+
+    <aside class="info-panel">
+        <div class="eyebrow">Project Snapshot</div>
+        <ul class="hero-list">
+            <li><span>Benchmarks</span><strong>DTLZ1, DTLZ2, DTLZ7</strong></li>
+            <li><span>Algorithms</span><strong>5 DE variants</strong></li>
+            <li><span>Statistics</span><strong>Wilcoxon p-values</strong></li>
+            <li><span>Run policy</span><strong>n = 30</strong></li>
+        </ul>
+    </aside>
+</div>
+
+<div class="dashboard-grid">
+    <div class="card">
+        <h3>DTLZ Coverage</h3>
+        <div class="card-value" id="dtlz-count">-</div>
+        <div class="card-label">Benchmark runs recorded</div>
+    </div>
+    <div class="card">
+        <h3>Finance Solutions</h3>
+        <div class="card-value" id="finance-count">-</div>
+        <div class="card-label">Portfolio candidates found</div>
+    </div>
+    <div class="card">
+        <h3>Best Sharpe</h3>
+        <div class="card-value" id="best-sharpe">-</div>
+        <div class="card-label">Highest risk-adjusted return</div>
+    </div>
+    <div class="card">
+        <h3>Best Return</h3>
+        <div class="card-value" id="best-return">-</div>
+        <div class="card-label">Top portfolio return</div>
+    </div>
+</div>
+
+<h2>What the project includes</h2>
+<div class="section-grid">
+    <div class="feature-card">
+        <h3>Benchmark experiments</h3>
+        <p>Compare Standard DE, PCA-DE, PMODE, HECO-PDE, and PCA-Escape DE on classical DTLZ test suites.</p>
+    </div>
+    <div class="feature-card">
+        <h3>Finance optimization</h3>
+        <p>Explore the risk-return frontier under realistic portfolio constraints and asset selection rules.</p>
+    </div>
+    <div class="feature-card">
+        <h3>Statistical testing</h3>
+        <p>Use Wilcoxon rank-sum significance maps to compare algorithm performance across repeated runs.</p>
+    </div>
+    <div class="feature-card">
+        <h3>Interactive controls</h3>
+        <p>Adjust algorithm parameters, budget limits, and portfolio settings without leaving the browser.</p>
+    </div>
+</div>
+
+<h2>Workflow</h2>
+<div class="timeline">
+    <div class="step">
+        <span>1</span>
+        <h3>Run experiments</h3>
+        <p class="subtitle">Generate repeated runs for DTLZ and finance problems.</p>
+    </div>
+    <div class="step">
+        <span>2</span>
+        <h3>Summarize metrics</h3>
+        <p class="subtitle">Collect IGD, GD, HV, Sharpe ratio, and frontier statistics.</p>
+    </div>
+    <div class="step">
+        <span>3</span>
+        <h3>Test significance</h3>
+        <p class="subtitle">Compute pairwise p-values with 30-run samples for valid comparisons.</p>
+    </div>
+    <div class="step">
+        <span>4</span>
+        <h3>Visualize results</h3>
+        <p class="subtitle">Inspect tables, heatmaps, and simulator outputs from one website.</p>
+    </div>
+</div>
+
+<div class="error"></div>
+<div class="success-msg"></div>
+
+<h2>Results summary</h2>
+<div class="dashboard-grid">
+    <div class="card">
+        <h3>DTLZ Problems</h3>
+        <div class="card-value" id="dtlz-count-2">-</div>
+        <div class="card-label">Benchmark tests completed</div>
+        <button class="btn-secondary" onclick="window.location.href='/simulator/budget'">View sweep</button>
+    </div>
+    <div class="card">
+        <h3>Finance Portfolios</h3>
+        <div class="card-value" id="finance-count-2">-</div>
+        <div class="card-label">Portfolio solutions found</div>
+        <button class="btn-secondary" onclick="window.location.href='/simulator/finance'">View simulator</button>
+    </div>
+    <div class="card">
+        <h3>Best Sharpe</h3>
+        <div class="card-value" id="best-sharpe-2">-</div>
+        <div class="card-label">Finance efficiency ratio</div>
+    </div>
+    <div class="card">
+        <h3>Best Return</h3>
+        <div class="card-value" id="best-return-2">-</div>
+        <div class="card-label">Max portfolio return</div>
+    </div>
+</div>
+
+<h2>Downloads</h2>
+<div style="display: flex; gap: 10px; flex-wrap: wrap;">
+    <button class="download-btn" onclick="downloadDTLZ()">Download DTLZ Summary (CSV)</button>
+    <button class="download-btn" onclick="downloadFinance()">Download Finance Summary (CSV)</button>
+</div>
+
+<h2>DTLZ summary table</h2>
+<div id="dtlz-table" style="overflow-x: auto;">
+    <p style="color: var(--muted);">Loading...</p>
+</div>
+
+<h2>Finance summary table</h2>
+<div id="finance-table" style="overflow-x: auto;">
+    <p style="color: var(--muted);">Loading...</p>
+</div>
+
+<script>
+    // Load summary on page load
+    window.addEventListener('DOMContentLoaded', () => {
+        loadSummary();
+        loadDTLZTable();
+        loadFinanceTable();
+    });
+    
+    async function loadSummary() {
+        try {
+            const data = await fetchJSON('/api/results/summary');
+            
+            document.getElementById('dtlz-count').textContent = data.dtlz_count || '0';
+            document.getElementById('dtlz-count-2').textContent = data.dtlz_count || '0';
+            document.getElementById('finance-count').textContent = data.finance_count || '0';
+            document.getElementById('finance-count-2').textContent = data.finance_count || '0';
+            
+            if (data.finance_metrics.best_sharpe) {
+                document.getElementById('best-sharpe').textContent = 
+                    data.finance_metrics.best_sharpe.toFixed(3);
+                document.getElementById('best-sharpe-2').textContent = 
+                    data.finance_metrics.best_sharpe.toFixed(3);
+            }
+            if (data.finance_metrics.best_return) {
+                document.getElementById('best-return').textContent = 
+                    (data.finance_metrics.best_return * 100).toFixed(2) + '%';
+                document.getElementById('best-return-2').textContent = 
+                    (data.finance_metrics.best_return * 100).toFixed(2) + '%';
+            }
+        } catch (error) {
+            console.error('Error loading summary:', error);
+        }
+    }
+    
+    async function loadDTLZTable() {
+        try {
+            const data = await fetchJSON('/api/dtlz/summary');
+            if (!data.error) {
+                const html = buildTable(data, ['problem', 'algorithm', 'igd_mean', 'hv_mean', 'gd_mean']);
+                document.getElementById('dtlz-table').innerHTML = html;
+            }
+        } catch (error) {
+            console.error('Error loading DTLZ table:', error);
+        }
+    }
+    
+    async function loadFinanceTable() {
+        try {
+            const data = await fetchJSON('/api/finance/summary');
+            if (!data.error) {
+                const html = buildTable(data, ['algorithm', 'return', 'vol', 'sharpe', 'sortino', 'mdd']);
+                document.getElementById('finance-table').innerHTML = html;
+            }
+        } catch (error) {
+            console.error('Error loading Finance table:', error);
+        }
+    }
+    
+    function buildTable(data, columns) {
+        if (!data || data.length === 0) {
+            return '<p style="color: #777;">No data available</p>';
+        }
+        
+        let html = '<table><thead><tr>';
+        columns.forEach(col => {
+            html += `<th>${col.toUpperCase()}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+        
+        data.forEach(row => {
+            html += '<tr>';
+            columns.forEach(col => {
+                let val = row[col];
+                if (typeof val === 'number') {
+                    val = val.toFixed(4);
+                }
+                html += `<td>${val}</td>`;
+            });
+            html += '</tr>';
+        });
+        
+        html += '</tbody></table>';
+        return html;
+    }
+    
+    function downloadDTLZ() {
+        window.location.href = '/api/download/dtlz_csv';
+    }
+    
+    function downloadFinance() {
+        window.location.href = '/api/download/finance_csv';
+    }
+</script>
+
+{% endblock %}

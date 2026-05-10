@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Budget Sweep Visualizer - Quant Project{% endblock %}
+
+{% block content %}
+<h1>📉 Budget Sweep Visualizer</h1>
+<p class="subtitle">See how algorithm convergence changes with different function evaluation budgets</p>
+
+<div class="error"></div>
+<div class="success-msg"></div>
+
+<div class="controls">
+    <div class="control-group">
+        <label for="algo">Algorithm</label>
+        <select id="algo">
+            <option value="Standard DE">Standard DE</option>
+            <option value="PCA-DE">PCA-DE</option>
+            <option value="PMODE">PMODE</option>
+            <option value="HECO-PDE">HECO-PDE</option>
+        </select>
+    </div>
+    
+    <div class="control-group">
+        <label for="budgets">FE Budgets (comma-separated)</label>
+        <input type="text" id="budgets" value="1000, 5000, 10000, 50000, 100000" placeholder="1000, 5000, 10000, ...">
+        <div class="value-display" style="font-size: 12px; color: #999;">Enter budgets in order (e.g., 1000, 5000, 10000)</div>
+    </div>
+    
+    <div class="control-group">
+        <label for="n-runs">Number of Runs per Budget</label>
+        <input type="range" id="n-runs" min="1" max="5" value="2" step="1">
+        <div class="value-display" id="n-runs-val">2 runs</div>
+    </div>
+    
+    <button class="btn-primary" onclick="runBudgetSweep()">🚀 Run Budget Sweep</button>
+</div>
+
+<div class="loading">
+    <div class="spinner"></div>
+    <p>Running budget sweep across multiple function evaluations...</p>
+</div>
+
+<div class="results" id="results">
+    <h2>📊 Budget Sweep Results</h2>
+    
+    <div style="margin: 15px 0;">
+        <span class="metric" id="algo-result">-</span>
+        <span class="metric success" id="budget-result">-</span>
+    </div>
+    
+    <div class="plot-container">
+        <img id="plot" src="" alt="Budget sweep plot">
+    </div>
+    
+    <h3>📋 Convergence Table</h3>
+    <table id="budget-table">
+        <thead>
+            <tr>
+                <th>Function Evaluations</th>
+                <th>IGD Mean</th>
+                <th>IGD Std Dev</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    
+    <div style="background: #f0f7ff; padding: 15px; border-radius: 6px; margin-top: 20px;">
+        <h4 style="color: #667eea; margin-bottom: 10px;">💡 Interpretation</h4>
+        <p style="font-size: 13px; color: #555; line-height: 1.6;">
+            <strong>Lower IGD is better</strong> (better convergence and spread). The curve shows how your algorithm improves
+            as you allocate more function evaluations. A steep drop indicates rapid convergence; a plateau suggests 
+            the algorithm has reached its limit with current settings.
+        </p>
+    </div>
+    
+    <button class="download-btn" onclick="exportBudgetResults()">📥 Export Results</button>
+</div>
+
+<script>
+    document.getElementById('n-runs').addEventListener('input', (e) => {
+        document.getElementById('n-runs-val').textContent = e.target.value + ' runs';
+    });
+    
+    async function runBudgetSweep() {
+        hideError();
+        toggleLoading(true);
+        
+        try {
+            const params = {
+                algorithm: document.getElementById('algo').value,
+                budgets: document.getElementById('budgets').value,
+                n_runs: parseInt(document.getElementById('n-runs').value),
+            };
+            
+            const response = await fetchJSON('/api/budget/simulate', {
+                method: 'POST',
+                body: JSON.stringify(params)
+            });
+            
+            if (response.success) {
+                displayResults(response);
+                showSuccess('Budget sweep completed!');
+            } else {
+                showError('Budget sweep failed: ' + response.error);
+            }
+        } catch (error) {
+            showError('Error: ' + error.message);
+        } finally {
+            toggleLoading(false);
+        }
+    }
+    
+    function displayResults(data) {
+        document.getElementById('algo-result').textContent = 'Algorithm: ' + data.algorithm;
+        document.getElementById('budget-result').textContent = data.budgets.length + ' budget points';
+        
+        // Plot
+        document.getElementById('plot').src = data.plot;
+        
+        // Budget table
+        const tbody = document.querySelector('#budget-table tbody');
+        tbody.innerHTML = '';
+        
+        data.budgets.forEach((budget, idx) => {
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td>${budget.toLocaleString()}</td>
+                <td>${data.igd_means[idx].toFixed(4)}</td>
+                <td>${data.igd_stds[idx].toFixed(4)}</td>
+            `;
+        });
+        
+        document.getElementById('results').classList.add('active');
+    }
+    
+    function exportBudgetResults() {
+        const algo = document.getElementById('algo').value;
+        const table = document.getElementById('budget-table');
+        
+        let csv = `Budget Sweep Results\n`;
+        csv += `Algorithm,${algo}\n\n`;
+        csv += 'Function Evaluations,IGD Mean,IGD Std Dev\n';
+        
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            csv += Array.from(cells).map(c => c.textContent).join(',') + '\n';
+        });
+        
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'budget_sweep.csv';
+        a.click();
+    }
+</script>
+
+{% endblock %}

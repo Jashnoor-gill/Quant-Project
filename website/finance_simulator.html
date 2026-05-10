@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Finance Simulator - Quant Project{% endblock %}
+
+{% block content %}
+<h1>💰 Finance Portfolio Simulator</h1>
+<p class="subtitle">Optimize portfolio allocation with real market data</p>
+
+<div class="error"></div>
+<div class="success-msg"></div>
+
+<div class="controls">
+    <div class="control-group">
+        <label for="algo">Algorithm</label>
+        <select id="algo">
+            <option value="Standard DE">Standard DE</option>
+            <option value="PCA-DE">PCA-DE</option>
+            <option value="PMODE">PMODE</option>
+            <option value="HECO-PDE">HECO-PDE</option>
+            <option value="PCA-Escape DE">PCA-Escape DE</option>
+        </select>
+    </div>
+    
+    <div class="control-group">
+        <label for="n-assets">Number of Assets</label>
+        <input type="range" id="n-assets" min="10" max="50" value="30" step="1">
+        <div class="value-display" id="n-assets-val">30 assets</div>
+    </div>
+    
+    <div class="control-group">
+        <label for="max-weight">Max Weight per Asset</label>
+        <input type="range" id="max-weight" min="0.05" max="0.50" value="0.40" step="0.01">
+        <div class="value-display" id="max-weight-val">40%</div>
+    </div>
+    
+    <div class="control-group">
+        <label for="n-runs">Number of Runs</label>
+        <input type="number" id="n-runs" value="3" min="1" max="10">
+    </div>
+    
+    <div class="control-group">
+        <label for="max-fes">Max Function Evaluations</label>
+        <input type="number" id="max-fes" value="5000" min="1000" max="50000" step="500">
+    </div>
+    
+    <div class="control-group">
+        <label for="pop-size">Population Size</label>
+        <input type="number" id="pop-size" value="50" min="20" max="200" step="10">
+    </div>
+    
+    <button class="btn-primary" onclick="runSimulation()">🚀 Run Simulation</button>
+</div>
+
+<div class="loading">
+    <div class="spinner"></div>
+    <p>Running portfolio optimization...</p>
+</div>
+
+<div class="results" id="results">
+    <h2>📊 Simulation Results</h2>
+    
+    <div style="margin: 15px 0;">
+        <span class="metric" id="algo-result">-</span>
+        <span class="metric success" id="solutions-result">-</span>
+    </div>
+    
+    <div class="plot-container">
+        <img id="plot" src="" alt="Simulation results plot">
+    </div>
+    
+    <h3>Top 5 Portfolio Solutions</h3>
+    <table id="portfolios-table">
+        <thead>
+            <tr>
+                <th>Return</th>
+                <th>Volatility</th>
+                <th>Sharpe Ratio</th>
+                <th>Sortino</th>
+                <th>Max DD</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    
+    <button class="download-btn" onclick="exportResults()">📥 Export Results</button>
+</div>
+
+<script>
+    // Update value displays
+    document.getElementById('n-assets').addEventListener('input', (e) => {
+        document.getElementById('n-assets-val').textContent = e.target.value + ' assets';
+    });
+    
+    document.getElementById('max-weight').addEventListener('input', (e) => {
+        document.getElementById('max-weight-val').textContent = (e.target.value * 100).toFixed(0) + '%';
+    });
+    
+    async function runSimulation() {
+        hideError();
+        toggleLoading(true);
+        
+        try {
+            const params = {
+                algorithm: document.getElementById('algo').value,
+                n_assets: parseInt(document.getElementById('n-assets').value),
+                max_weight: parseFloat(document.getElementById('max-weight').value),
+                n_runs: parseInt(document.getElementById('n-runs').value),
+                max_fes: parseInt(document.getElementById('max-fes').value),
+                population_size: parseInt(document.getElementById('pop-size').value),
+            };
+            
+            const response = await fetchJSON('/api/finance/simulate', {
+                method: 'POST',
+                body: JSON.stringify(params)
+            });
+            
+            if (response.success) {
+                displayResults(response);
+                showSuccess('Simulation completed successfully!');
+            } else {
+                showError('Simulation failed: ' + response.error);
+            }
+        } catch (error) {
+            showError('Error: ' + error.message);
+        } finally {
+            toggleLoading(false);
+        }
+    }
+    
+    function displayResults(data) {
+        document.getElementById('algo-result').textContent = 'Algorithm: ' + data.algorithm;
+        document.getElementById('solutions-result').textContent = data.n_solutions + ' solutions';
+        
+        document.getElementById('plot').src = data.plot;
+        
+        // Build portfolios table
+        const tbody = document.querySelector('#portfolios-table tbody');
+        tbody.innerHTML = '';
+        
+        data.portfolios.forEach(portfolio => {
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td>${(portfolio.return * 100).toFixed(2)}%</td>
+                <td>${(portfolio.vol * 100).toFixed(2)}%</td>
+                <td>${portfolio.sharpe.toFixed(3)}</td>
+                <td>${portfolio.sortino.toFixed(3)}</td>
+                <td>${(portfolio.mdd * 100).toFixed(2)}%</td>
+            `;
+        });
+        
+        document.getElementById('results').classList.add('active');
+    }
+    
+    function exportResults() {
+        const table = document.getElementById('portfolios-table');
+        let csv = 'Return,Volatility,Sharpe Ratio,Sortino,Max DD\n';
+        
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            csv += Array.from(cells).map(c => c.textContent).join(',') + '\n';
+        });
+        
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'finance_simulation.csv';
+        a.click();
+    }
+</script>
+
+{% endblock %}

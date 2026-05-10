@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Algorithm Tuner - Quant Project{% endblock %}
+
+{% block content %}
+<h1>⚙️ Algorithm Parameter Tuner</h1>
+<p class="subtitle">Test different DE algorithm parameters on DTLZ2 benchmark</p>
+
+<div class="error"></div>
+<div class="success-msg"></div>
+
+<div class="controls">
+    <div class="control-group">
+        <label for="algo">Algorithm</label>
+        <select id="algo">
+            <option value="Standard DE">Standard DE</option>
+            <option value="PCA-DE">PCA-DE</option>
+            <option value="PMODE">PMODE</option>
+            <option value="HECO-PDE">HECO-PDE</option>
+        </select>
+    </div>
+    
+    <div class="control-group">
+        <label for="f-param">Scaling Factor (F)</label>
+        <input type="range" id="f-param" min="0.1" max="2.0" value="0.5" step="0.1">
+        <div class="value-display" id="f-val">0.50</div>
+    </div>
+    
+    <div class="control-group">
+        <label for="cr-param">Crossover Rate (CR)</label>
+        <input type="range" id="cr-param" min="0.0" max="1.0" value="0.9" step="0.05">
+        <div class="value-display" id="cr-val">0.90</div>
+    </div>
+    
+    <div class="control-group">
+        <label for="pop-size">Population Size</label>
+        <input type="range" id="pop-size" min="20" max="200" value="70" step="10">
+        <div class="value-display" id="pop-val">70</div>
+    </div>
+    
+    <div class="control-group">
+        <label for="max-fes">Max Function Evaluations</label>
+        <input type="number" id="max-fes" value="10000" min="5000" max="50000" step="1000">
+    </div>
+    
+    <div class="control-group">
+        <label for="n-runs">Number of Runs</label>
+        <input type="number" id="n-runs" value="3" min="1" max="10">
+    </div>
+    
+    <button class="btn-primary" onclick="runTuning()">🚀 Run Tuning Test</button>
+</div>
+
+<div class="loading">
+    <div class="spinner"></div>
+    <p>Testing algorithm parameters...</p>
+</div>
+
+<div class="results" id="results">
+    <h2>📊 Tuning Results (DTLZ2_2obj)</h2>
+    
+    <div style="margin: 15px 0;">
+        <span class="metric" id="algo-result">-</span>
+        <span class="metric success" id="params-result">-</span>
+    </div>
+    
+    <div style="margin: 15px 0; padding: 15px; background: white; border-radius: 6px;">
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+            <div>
+                <h4 style="color: #667eea; margin-bottom: 10px;">Inverted Generational Distance (IGD)</h4>
+                <div class="metric warning" id="igd-mean">Mean: -</div>
+                <div class="metric" id="igd-std">Std: -</div>
+            </div>
+            <div>
+                <h4 style="color: #667eea; margin-bottom: 10px;">Hypervolume (HV)</h4>
+                <div class="metric success" id="hv-mean">Mean: -</div>
+                <div class="metric" id="hv-std">Std: -</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="plot-container">
+        <img id="plot" src="" alt="Tuning results plot">
+    </div>
+    
+    <h3>📋 Parameter Configuration</h3>
+    <table style="background: white;">
+        <thead>
+            <tr>
+                <th>Parameter</th>
+                <th>Value</th>
+            </tr>
+        </thead>
+        <tbody id="params-table">
+        </tbody>
+    </table>
+    
+    <button class="download-btn" onclick="exportTuningResults()">📥 Export Results</button>
+</div>
+
+<script>
+    // Update value displays
+    document.getElementById('f-param').addEventListener('input', (e) => {
+        document.getElementById('f-val').textContent = parseFloat(e.target.value).toFixed(2);
+    });
+    
+    document.getElementById('cr-param').addEventListener('input', (e) => {
+        document.getElementById('cr-val').textContent = parseFloat(e.target.value).toFixed(2);
+    });
+    
+    document.getElementById('pop-size').addEventListener('input', (e) => {
+        document.getElementById('pop-val').textContent = e.target.value;
+    });
+    
+    async function runTuning() {
+        hideError();
+        toggleLoading(true);
+        
+        try {
+            const params = {
+                algorithm: document.getElementById('algo').value,
+                F: parseFloat(document.getElementById('f-param').value),
+                CR: parseFloat(document.getElementById('cr-param').value),
+                population_size: parseInt(document.getElementById('pop-size').value),
+                max_fes: parseInt(document.getElementById('max-fes').value),
+                n_runs: parseInt(document.getElementById('n-runs').value),
+            };
+            
+            const response = await fetchJSON('/api/algorithm/simulate', {
+                method: 'POST',
+                body: JSON.stringify(params)
+            });
+            
+            if (response.success) {
+                displayResults(response);
+                showSuccess('Tuning test completed!');
+            } else {
+                showError('Tuning failed: ' + response.error);
+            }
+        } catch (error) {
+            showError('Error: ' + error.message);
+        } finally {
+            toggleLoading(false);
+        }
+    }
+    
+    function displayResults(data) {
+        document.getElementById('algo-result').textContent = 'Algorithm: ' + data.algorithm;
+        
+        // Metrics
+        const metrics = data.metrics;
+        document.getElementById('igd-mean').textContent = `Mean IGD: ${metrics.igd_mean.toFixed(4)}`;
+        document.getElementById('igd-std').textContent = `Std: ${metrics.igd_std.toFixed(4)}`;
+        document.getElementById('hv-mean').textContent = `Mean HV: ${metrics.hv_mean.toFixed(4)}`;
+        document.getElementById('hv-std').textContent = `Std: ${metrics.hv_std.toFixed(4)}`;
+        
+        // Plot
+        document.getElementById('plot').src = data.plot;
+        
+        // Parameters table
+        const tbody = document.querySelector('#params-table');
+        tbody.innerHTML = '';
+        
+        Object.entries(data.parameters).forEach(([key, val]) => {
+            const row = tbody.insertRow();
+            row.innerHTML = `<td style="font-weight: 600;">${key.toUpperCase()}</td><td>${val}</td>`;
+        });
+        
+        document.getElementById('results').classList.add('active');
+    }
+    
+    function exportTuningResults() {
+        const algo = document.getElementById('algo').value;
+        const params = {
+            F: document.getElementById('f-param').value,
+            CR: document.getElementById('cr-param').value,
+            NP: document.getElementById('pop-size').value,
+            max_fes: document.getElementById('max-fes').value,
+            n_runs: document.getElementById('n-runs').value,
+        };
+        
+        let csv = `Algorithm Tuning Results\n`;
+        csv += `Algorithm: ${algo}\n`;
+        csv += `\nParameters:\n`;
+        csv += Object.entries(params).map(([k, v]) => `${k},${v}`).join('\n');
+        
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'algorithm_tuning.csv';
+        a.click();
+    }
+</script>
+
+{% endblock %}
