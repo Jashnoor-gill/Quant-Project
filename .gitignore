@@ -35,7 +35,7 @@ htmlcov/
 # Environment variables
 .env
 .env.local
-
+.log
 # Large files (optional - comment out if you want to include)
 # *.pkl
 # *.pth
