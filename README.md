@@ -43,6 +43,18 @@ project/
 
 ## Setup & Installation
 
+## Free Deployment (Render)
+
+This repository includes `render.yaml` and a `Procfile` for deployment on Render's free web service.
+
+1. Push this repository to your GitHub account.
+2. Create an account at https://render.com and choose **New > Blueprint**.
+3. Connect the `Quant-Project` GitHub repository and select the branch containing `render.yaml`.
+4. Accept the detected `quant-project` web service and click **Apply**.
+5. Wait for the build to finish, then open the generated `onrender.com` URL.
+
+The service installs `requirements.txt` and runs Flask through Gunicorn. Free services may sleep when idle and wake on the next request. The cloned repository does not include generated `results/QuantProjectResults` files, so result tables remain unavailable until the research scripts generate them; the interactive simulators use the included data files.
+
 ### System Requirements
 
 - **Python Version:** 3.8 or higher

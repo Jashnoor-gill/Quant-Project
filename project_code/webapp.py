@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -26,8 +27,9 @@ import pickle
 # Import the Quant project core
 import importlib.util
 BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR.parent
 QUANT_SCRIPT = BASE_DIR / "Quant project.py"
-RESULTS_DIR = BASE_DIR / "QuantProjectResults"
+RESULTS_DIR = PROJECT_ROOT / "results" / "QuantProjectResults"
 
 spec = importlib.util.spec_from_file_location("quant_project", QUANT_SCRIPT)
 quant_module = importlib.util.module_from_spec(spec)
@@ -49,7 +51,7 @@ proj_weights = quant_module.proj_weights
 portfolio_metrics = quant_module.portfolio_metrics
 
 # Setup Flask app
-app = Flask(__name__)
+app = Flask(__name__, template_folder=str(PROJECT_ROOT / "website"))
 CORS(app)
 app.config['JSON_SORT_KEYS'] = False
 
@@ -436,6 +438,7 @@ def api_download(filetype):
 
 
 if __name__ == '__main__':
-    print("Starting Quant Project Web App at http://localhost:5000")
+    port = int(os.environ.get("PORT", "5000"))
+    print(f"Starting Quant Project Web App at http://localhost:{port}")
     print("Make sure DTLZ and Finance results exist in QuantProjectResults/")
-    app.run(debug=True, port=5000, host='127.0.0.1')
+    app.run(debug=False, port=port, host='0.0.0.0')

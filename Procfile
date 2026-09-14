@@ -1,0 +1,1 @@
+web: gunicorn --chdir project_code webapp:app

@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: quant-project
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --chdir project_code webapp:app
+    plan: free
